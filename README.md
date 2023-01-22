@@ -19,8 +19,10 @@ import (
 func main() {
 	c := cache.New()
 
-	c.Set("userId", 12)
-
+	c.Set("userId", 12, time.Second * 5)
+	// the ttl parameter determines the time after which the data 
+	// will be cleared
+	 
 	id, err := c.Get("userId")
 	if err != nil {
 		fmt.Println(err)
