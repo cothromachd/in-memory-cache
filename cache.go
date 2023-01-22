@@ -1,6 +1,9 @@
 package cache
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type cache struct {
 	data map[string]interface{}
@@ -12,8 +15,15 @@ func New() *cache {
 	return cache
 }
 
-func (c *cache) Set(key string, value interface{}) {
+func (c *cache) Set(key string, value interface{}, ttl time.Duration) {
 	c.data[key] = value
+	time.AfterFunc(ttl, func() {
+		if _, ok := c.data[key]; ok {
+			delete(c.data, key)
+		} else {
+			fmt.Printf("Auto-delete error: there is no such key '%s' in storage\n", key)
+		}
+	})
 }
 
 func (c *cache) Get(key string) (interface{}, error) {
