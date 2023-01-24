@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"time"
 )
@@ -42,4 +43,24 @@ func (c *cache) Delete(key string) error {
 	} else {
 		return fmt.Errorf("Delete error: there is no such key '%s' in storage", key)
 	}
+}
+
+func (c *cache) Store() error {
+	file, err := os.OpenFile("./bag.txt", os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	c.data.Range(func(key, value any) bool {
+		_, err = file.Write([]byte(fmt.Sprintf("%v: %v\n", key, value)))
+		return err == nil
+	})
+	
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
