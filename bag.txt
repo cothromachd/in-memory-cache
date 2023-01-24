@@ -1,2 +1,0 @@
-zhopa: map[1:1 9:9]
-chlen: 2
