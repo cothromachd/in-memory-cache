@@ -82,5 +82,5 @@ func (c *cache) Load(ttl time.Duration) error {
 		c.Set(key, value, ttl)
 	}
 
-	return err
+	return nil
 }
