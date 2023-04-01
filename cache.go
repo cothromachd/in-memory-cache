@@ -18,7 +18,7 @@ func New() *Cache {
 	return cache
 }
 
-func (c *Cache) Set(key string, value any, ttl time.Duration) {
+func (c *Cache) Set(key string, value interface{}, ttl time.Duration) {
 	c.data.Store(key, value)
 	time.AfterFunc(ttl, func() {
 		if _, ok := c.data.Load(key); ok {
@@ -29,7 +29,7 @@ func (c *Cache) Set(key string, value any, ttl time.Duration) {
 	})
 }
 
-func (c *Cache) Get(key string) (any, error) {
+func (c *Cache) Get(key string) (interface{}, error) {
 	if val, ok := c.data.Load(key); ok {
 		return val, nil
 	} else {
@@ -54,9 +54,9 @@ func (c *Cache) Store() error {
 
 	defer file.Close()
 
-	m := make(map[string]any)
+	m := make(map[string]interface{})
 
-	c.data.Range(func(key, value any) bool {
+	c.data.Range(func(key, value interface{}) bool {
 		m[key.(string)] = value
 		return true
 	})
@@ -75,7 +75,7 @@ func (c *Cache) Load(ttl time.Duration) error {
 		return fmt.Errorf("Load() error: %v", err)
 	}
 
-	m := make(map[string]any)
+	m := make(map[string]interface{})
 	json.NewDecoder(file).Decode(&m)
 
 	for key, value := range m {
