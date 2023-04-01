@@ -47,7 +47,7 @@ func (c *Cache) Delete(key string) error {
 }
 
 func (c *Cache) Store() error {
-	file, err := os.OpenFile("./bag.txt", os.O_RDWR|os.O_CREATE, 0755)
+	file, err := os.OpenFile("./bag.json", os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		return fmt.Errorf("Store() error: %v", err)
 	}
@@ -70,7 +70,7 @@ func (c *Cache) Store() error {
 }
 
 func (c *Cache) Load(ttl time.Duration) error {
-	file, err := os.OpenFile("./bag.txt", os.O_RDWR, 0755)
+	file, err := os.OpenFile("./bag.json", os.O_RDWR, 0755)
 	if err != nil {
 		return fmt.Errorf("Load() error: %v", err)
 	}
