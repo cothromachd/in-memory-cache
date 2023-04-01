@@ -8,17 +8,17 @@ import (
 	"time"
 )
 
-type cache struct {
+type Cache struct {
 	data *sync.Map
 }
 
-func New() *cache {
+func New() *Cache {
 	m := new(sync.Map)
-	cache := &cache{data: m}
+	cache := &Cache{data: m}
 	return cache
 }
 
-func (c *cache) Set(key string, value interface{}, ttl time.Duration) {
+func (c *Cache) Set(key string, value any, ttl time.Duration) {
 	c.data.Store(key, value)
 	time.AfterFunc(ttl, func() {
 		if _, ok := c.data.Load(key); ok {
@@ -29,7 +29,7 @@ func (c *cache) Set(key string, value interface{}, ttl time.Duration) {
 	})
 }
 
-func (c *cache) Get(key string) (interface{}, error) {
+func (c *Cache) Get(key string) (any, error) {
 	if val, ok := c.data.Load(key); ok {
 		return val, nil
 	} else {
@@ -37,7 +37,7 @@ func (c *cache) Get(key string) (interface{}, error) {
 	}
 }
 
-func (c *cache) Delete(key string) error {
+func (c *Cache) Delete(key string) error {
 	if _, ok := c.data.Load(key); ok {
 		c.data.Delete(key)
 		return nil
@@ -46,7 +46,7 @@ func (c *cache) Delete(key string) error {
 	}
 }
 
-func (c *cache) Store() error {
+func (c *Cache) Store() error {
 	file, err := os.OpenFile("./bag.txt", os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		return fmt.Errorf("Store() error: %v", err)
@@ -54,7 +54,7 @@ func (c *cache) Store() error {
 
 	defer file.Close()
 
-	m := make(map[string]interface{})
+	m := make(map[string]any)
 
 	c.data.Range(func(key, value any) bool {
 		m[key.(string)] = value
@@ -69,13 +69,13 @@ func (c *cache) Store() error {
 	return nil
 }
 
-func (c *cache) Load(ttl time.Duration) error {
+func (c *Cache) Load(ttl time.Duration) error {
 	file, err := os.OpenFile("./bag.txt", os.O_RDWR, 0755)
 	if err != nil {
 		return fmt.Errorf("Load() error: %v", err)
 	}
 
-	m := make(map[string]interface{})
+	m := make(map[string]any)
 	json.NewDecoder(file).Decode(&m)
 
 	for key, value := range m {
