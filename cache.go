@@ -36,8 +36,6 @@ func (c *Cache) Add(key string, value interface{}) {
 	if item, ok := c.Items[key]; !ok {
 		c.Lock()
 
-		defer c.Unlock()
-
 		if c.Capacity == len(c.Items) {
 			back := c.Queue.Back()
 			c.Queue.Remove(back)
@@ -45,15 +43,14 @@ func (c *Cache) Add(key string, value interface{}) {
 		}
 
 		c.Items[key] = &Node{Data: value, KeyPtr: c.Queue.PushFront(key)}
+		c.Unlock()
 	} else {
 		item.Data = value
 
 		c.Lock()
-
-		defer c.Unlock()
-
 		c.Items[key] = item
 		c.Queue.MoveToFront(item.KeyPtr)
+		c.Unlock()
 	}
 
 	time.AfterFunc(c.ttl, func() {
