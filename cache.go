@@ -1,86 +1,134 @@
 package cache
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
+	"container/list"
 	"sync"
 	"time"
 )
 
+type Cacher interface {
+	Cap() int
+	Clear()
+	Add(key string, value interface{})
+	AddWithTTL(key string, value interface{}, ttl time.Duration)
+	Get(key string) (value interface{}, ok bool)
+	Remove(key string) error
+}
+
+type Node struct {
+	Data   interface{}
+	KeyPtr *list.Element
+}
+
 type Cache struct {
-	data *sync.Map
+	sync.RWMutex
+	Queue    *list.List
+	Items    map[string]*Node
+	Capacity int
+	ttl      time.Duration
 }
 
-func New() *Cache {
-	m := new(sync.Map)
-	cache := &Cache{data: m}
-	return cache
+func New(capacity int, ttl time.Duration) Cache {
+	return Cache{Queue: list.New(), Items: make(map[string]*Node), Capacity: capacity, ttl: ttl}
 }
 
-func (c *Cache) Set(key string, value interface{}, ttl time.Duration) {
-	c.data.Store(key, value)
-	time.AfterFunc(ttl, func() {
-		if _, ok := c.data.Load(key); ok {
-			c.data.Delete(key)
-		} else {
-			fmt.Printf("Auto-delete error: there is no such key '%s' in storage\n", key)
+func (c *Cache) Add(key string, value interface{}) {
+	if item, ok := c.Items[key]; !ok {
+		c.Lock()
+
+		defer c.Unlock()
+
+		if c.Capacity == len(c.Items) {
+			back := c.Queue.Back()
+			c.Queue.Remove(back)
+			delete(c.Items, back.Value.(string))
 		}
+
+		c.Items[key] = &Node{Data: value, KeyPtr: c.Queue.PushFront(key)}
+	} else {
+		item.Data = value
+
+		c.Lock()
+
+		defer c.Unlock()
+
+		c.Items[key] = item
+		c.Queue.MoveToFront(item.KeyPtr)
+	}
+
+	time.AfterFunc(c.ttl, func() {
+		c.Remove(key)
 	})
 }
 
-func (c *Cache) Get(key string) (interface{}, error) {
-	if val, ok := c.data.Load(key); ok {
-		return val, nil
+func (c *Cache) AddWithTTL(key string, value interface{}, ttl time.Duration) {
+	if item, ok := c.Items[key]; !ok {
+		c.Lock()
+		if c.Capacity == len(c.Items) {
+			back := c.Queue.Back()
+			c.Queue.Remove(back)
+			delete(c.Items, back.Value.(string))
+		}
+
+		c.Items[key] = &Node{Data: value, KeyPtr: c.Queue.PushFront(key)}
+		c.Unlock()
 	} else {
-		return nil, fmt.Errorf("Get() error: there is no such key '%s' in storage", key)
-	}
-}
+		item.Data = value
 
-func (c *Cache) Delete(key string) error {
-	if _, ok := c.data.Load(key); ok {
-		c.data.Delete(key)
-		return nil
-	} else {
-		return fmt.Errorf("Delete() error: there is no such key '%s' in storage", key)
-	}
-}
-
-func (c *Cache) Store() error {
-	file, err := os.OpenFile("./bag.json", os.O_RDWR|os.O_CREATE, 0755)
-	if err != nil {
-		return fmt.Errorf("Store() error: %v", err)
+		c.Lock()
+		c.Items[key] = item
+		c.Queue.MoveToFront(item.KeyPtr)
+		c.Unlock()
 	}
 
-	defer file.Close()
-
-	m := make(map[string]interface{})
-
-	c.data.Range(func(key, value interface{}) bool {
-		m[key.(string)] = value
-		return true
+	time.AfterFunc(ttl, func() {
+		c.Remove(key)
 	})
-
-	err = json.NewEncoder(file).Encode(m)
-	if err != nil {
-		return fmt.Errorf("Store() error: %v", err)
-	}
-
-	return nil
 }
 
-func (c *Cache) Load(ttl time.Duration) error {
-	file, err := os.OpenFile("./bag.json", os.O_RDWR, 0755)
-	if err != nil {
-		return fmt.Errorf("Load() error: %v", err)
+func (c *Cache) Get(key string) (value interface{}, ok bool) {
+	if item, ok := c.Items[key]; ok {
+		c.Lock()
+		c.Queue.MoveToFront(item.KeyPtr)
+		c.Unlock()
+		value = item.Data
+		return value, true
 	}
 
-	m := make(map[string]interface{})
-	json.NewDecoder(file).Decode(&m)
+	return nil, false
+}
 
-	for key, value := range m {
-		c.Set(key, value, ttl)
+func (c *Cache) Remove(key string) bool {
+	elem, ok := c.Items[key]
+	if !ok {
+		return ok
 	}
 
-	return nil
+	c.Lock()
+
+	defer c.Unlock()
+
+	c.Queue.Remove(elem.KeyPtr)
+	delete(c.Items, key)
+
+	return true
+}
+
+func (c *Cache) Clear() int {
+	var ok bool
+	var cnt int
+	for key := range c.Items {
+		ok = c.Remove(key)
+		if ok {
+			cnt++
+		} else {
+			return -1
+		}
+	}
+	
+	return cnt
+}
+
+func (c *Cache) Cap() int {
+	return c.Capacity
 }
