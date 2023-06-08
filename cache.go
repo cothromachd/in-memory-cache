@@ -21,7 +21,7 @@ type Node struct {
 }
 
 type Cache struct {
-	sync.RWMutex
+	sync.Mutex
 	Queue    *list.List
 	Items    map[string]*Node
 	Capacity int
