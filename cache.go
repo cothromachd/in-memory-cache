@@ -12,7 +12,7 @@ type Cacher interface {
 	Add(key string, value interface{})
 	AddWithTTL(key string, value interface{}, ttl time.Duration)
 	Get(key string) (value interface{}, ok bool)
-	Remove(key string) error
+	Remove(key string) bool
 }
 
 type Node struct {
