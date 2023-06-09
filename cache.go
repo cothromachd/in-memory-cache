@@ -12,7 +12,7 @@ type Cacher interface {
 	Add(key string, value interface{})
 	AddWithTTL(key string, value interface{}, ttl time.Duration)
 	Get(key string) (value interface{}, ok bool)
-	Remove(key string) bool
+	Remove(key string)
 }
 
 type Node struct {
@@ -21,7 +21,7 @@ type Node struct {
 }
 
 type Cache struct {
-	sync.Mutex
+	mx       sync.Mutex
 	Queue    *list.List
 	Items    map[string]*Node
 	Capacity int
@@ -29,13 +29,17 @@ type Cache struct {
 }
 
 func New(capacity int, ttl time.Duration) Cache {
-	return Cache{Queue: list.New(), Items: make(map[string]*Node), Capacity: capacity, ttl: ttl}
+	return Cache{
+		mx:       sync.Mutex{},
+		Queue:    list.New(),
+		Items:    make(map[string]*Node),
+		Capacity: capacity, ttl: ttl}
 }
 
 func (c *Cache) Add(key string, value interface{}) {
-	if item, ok := c.Items[key]; !ok {
-		c.Lock()
+	c.mx.Lock()
 
+	if item, ok := c.Items[key]; !ok {
 		if c.Capacity == len(c.Items) {
 			back := c.Queue.Back()
 			c.Queue.Remove(back)
@@ -43,15 +47,13 @@ func (c *Cache) Add(key string, value interface{}) {
 		}
 
 		c.Items[key] = &Node{Data: value, KeyPtr: c.Queue.PushFront(key)}
-		c.Unlock()
 	} else {
 		item.Data = value
-
-		c.Lock()
 		c.Items[key] = item
 		c.Queue.MoveToFront(item.KeyPtr)
-		c.Unlock()
 	}
+
+	c.mx.Unlock()
 
 	time.AfterFunc(c.ttl, func() {
 		c.Remove(key)
@@ -59,8 +61,8 @@ func (c *Cache) Add(key string, value interface{}) {
 }
 
 func (c *Cache) AddWithTTL(key string, value interface{}, ttl time.Duration) {
+	c.mx.Lock()
 	if item, ok := c.Items[key]; !ok {
-		c.Lock()
 		if c.Capacity == len(c.Items) {
 			back := c.Queue.Back()
 			c.Queue.Remove(back)
@@ -68,15 +70,13 @@ func (c *Cache) AddWithTTL(key string, value interface{}, ttl time.Duration) {
 		}
 
 		c.Items[key] = &Node{Data: value, KeyPtr: c.Queue.PushFront(key)}
-		c.Unlock()
 	} else {
 		item.Data = value
-
-		c.Lock()
 		c.Items[key] = item
 		c.Queue.MoveToFront(item.KeyPtr)
-		c.Unlock()
 	}
+
+	c.mx.Unlock()
 
 	time.AfterFunc(ttl, func() {
 		c.Remove(key)
@@ -84,45 +84,52 @@ func (c *Cache) AddWithTTL(key string, value interface{}, ttl time.Duration) {
 }
 
 func (c *Cache) Get(key string) (value interface{}, ok bool) {
+	c.mx.Lock()
+
+	defer c.mx.Unlock()
+
 	if item, ok := c.Items[key]; ok {
-		c.Lock()
 		c.Queue.MoveToFront(item.KeyPtr)
-		c.Unlock()
 		value = item.Data
 		return value, true
 	}
-
 	return nil, false
 }
 
 func (c *Cache) Remove(key string) bool {
+	c.mx.Lock()
+
+	defer c.mx.Unlock()
+
 	elem, ok := c.Items[key]
 	if !ok {
-		return ok
+		return false
 	}
-
-	c.Lock()
-
-	defer c.Unlock()
 
 	c.Queue.Remove(elem.KeyPtr)
 	delete(c.Items, key)
-
 	return true
 }
 
 func (c *Cache) Clear() int {
-	var ok bool
 	var cnt int
+	var ok bool
+
+	c.mx.Lock()
 	for key := range c.Items {
+		c.mx.Unlock()
 		ok = c.Remove(key)
 		if ok {
 			cnt++
 		} else {
+			c.mx.Lock()
 			return -1
 		}
+
+		c.mx.Lock()
 	}
-	
+
+	defer c.mx.Unlock()
 	return cnt
 }
 

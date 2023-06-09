@@ -112,6 +112,22 @@ func TestCap(t *testing.T) {
 	}
 }
 
-func TestRaceCondition(t *testing.T) {
+func TestLRU(t *testing.T) {
+	c := New(4, 15 * time.Second)
 
+	c.Add("1", 1)
+	c.Add("2", 2)
+	c.Add("3", 3)
+	c.Add("4", 4)
+
+	c.Get("1")
+	c.Get("2")
+	c.Get("3")
+
+	c.Add("5", 5)
+
+	_, ok := c.Get("4")
+	if ok {
+		t.Fatalf("LRU failed: the least used value is not removed when a new one is added to a busy queue")
+	}
 }
