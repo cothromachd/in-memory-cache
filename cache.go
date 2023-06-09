@@ -16,8 +16,8 @@ type Cacher interface {
 }
 
 type Node struct {
-	Data   interface{}
-	KeyPtr *list.Element
+	Data       interface{}
+	KeyPtr     *list.Element
 	Expiration time.Time
 }
 
@@ -63,9 +63,9 @@ func (c *Cache) Add(key string, value interface{}) {
 
 	c.mx.Unlock()
 	/*
-	time.AfterFunc(c.ttl, func() {
-		c.Remove(key)
-	})
+		time.AfterFunc(c.ttl, func() {
+			c.Remove(key)
+		})
 	*/
 }
 
@@ -95,9 +95,9 @@ func (c *Cache) AddWithTTL(key string, value interface{}, ttl time.Duration) {
 
 	c.mx.Unlock()
 	/*
-	time.AfterFunc(ttl, func() {
-		c.Remove(key)
-	})
+		time.AfterFunc(ttl, func() {
+			c.Remove(key)
+		})
 	*/
 }
 

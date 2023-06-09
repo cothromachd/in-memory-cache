@@ -6,7 +6,7 @@ import (
 )
 
 func TestAdd(t *testing.T) {
-	c := New(5, time.Second * 4)
+	c := New(5, time.Second*4)
 
 	c.Add("Monday", 1)
 
@@ -28,9 +28,9 @@ func TestAdd(t *testing.T) {
 }
 
 func TestAddWithTTL(t *testing.T) {
-	c := New(5, time.Second * 30)
+	c := New(5, time.Second*30)
 
-	c.AddWithTTL("Monday", 1, time.Second * 4)
+	c.AddWithTTL("Monday", 1, time.Second*4)
 
 	val, ok := c.Get("Monday")
 	if !ok {
@@ -50,7 +50,7 @@ func TestAddWithTTL(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	c := New(5, time.Second * 30)
+	c := New(5, time.Second*30)
 
 	c.Add("Monday", 1)
 
@@ -63,8 +63,8 @@ func TestGet(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	c := New(5, time.Second * 30)
-	
+	c := New(5, time.Second*30)
+
 	c.Add("Monday", 1)
 
 	ok := c.Remove("Monday")
@@ -79,7 +79,7 @@ func TestRemove(t *testing.T) {
 }
 
 func TestClear(t *testing.T) {
-	c := New(5, time.Second * 30)
+	c := New(5, time.Second*30)
 
 	c.Add("Monday", 1)
 	c.Add("Tuesday", 2)
@@ -104,7 +104,7 @@ func TestClear(t *testing.T) {
 }
 
 func TestCap(t *testing.T) {
-	c := New(5, time.Second * 10)
+	c := New(5, time.Second*10)
 
 	cap := c.Cap()
 	if cap != 5 {
@@ -113,7 +113,7 @@ func TestCap(t *testing.T) {
 }
 
 func TestLRU(t *testing.T) {
-	c := New(4, 15 * time.Second)
+	c := New(4, 15*time.Second)
 
 	c.Add("1", 1)
 	c.Add("2", 2)
