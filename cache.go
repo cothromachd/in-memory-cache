@@ -18,6 +18,7 @@ type Cacher interface {
 type Node struct {
 	Data   interface{}
 	KeyPtr *list.Element
+	Expiration time.Time
 }
 
 type Cache struct {
@@ -39,6 +40,13 @@ func New(capacity int, ttl time.Duration) Cache {
 func (c *Cache) Add(key string, value interface{}) {
 	c.mx.Lock()
 
+	for key, val := range c.Items {
+		if time.Now().After(val.Expiration) {
+			c.Queue.Remove(val.KeyPtr)
+			delete(c.Items, key)
+		}
+	}
+
 	if item, ok := c.Items[key]; !ok {
 		if c.Capacity == len(c.Items) {
 			back := c.Queue.Back()
@@ -46,7 +54,7 @@ func (c *Cache) Add(key string, value interface{}) {
 			delete(c.Items, back.Value.(string))
 		}
 
-		c.Items[key] = &Node{Data: value, KeyPtr: c.Queue.PushFront(key)}
+		c.Items[key] = &Node{Data: value, KeyPtr: c.Queue.PushFront(key), Expiration: time.Now().Add(c.ttl)}
 	} else {
 		item.Data = value
 		c.Items[key] = item
@@ -54,14 +62,23 @@ func (c *Cache) Add(key string, value interface{}) {
 	}
 
 	c.mx.Unlock()
-
+	/*
 	time.AfterFunc(c.ttl, func() {
 		c.Remove(key)
 	})
+	*/
 }
 
 func (c *Cache) AddWithTTL(key string, value interface{}, ttl time.Duration) {
 	c.mx.Lock()
+
+	for key, val := range c.Items {
+		if time.Now().After(val.Expiration) {
+			c.Queue.Remove(val.KeyPtr)
+			delete(c.Items, key)
+		}
+	}
+
 	if item, ok := c.Items[key]; !ok {
 		if c.Capacity == len(c.Items) {
 			back := c.Queue.Back()
@@ -69,7 +86,7 @@ func (c *Cache) AddWithTTL(key string, value interface{}, ttl time.Duration) {
 			delete(c.Items, back.Value.(string))
 		}
 
-		c.Items[key] = &Node{Data: value, KeyPtr: c.Queue.PushFront(key)}
+		c.Items[key] = &Node{Data: value, KeyPtr: c.Queue.PushFront(key), Expiration: time.Now().Add(ttl)}
 	} else {
 		item.Data = value
 		c.Items[key] = item
@@ -77,14 +94,22 @@ func (c *Cache) AddWithTTL(key string, value interface{}, ttl time.Duration) {
 	}
 
 	c.mx.Unlock()
-
+	/*
 	time.AfterFunc(ttl, func() {
 		c.Remove(key)
 	})
+	*/
 }
 
 func (c *Cache) Get(key string) (value interface{}, ok bool) {
 	c.mx.Lock()
+
+	for key, val := range c.Items {
+		if time.Now().After(val.Expiration) {
+			c.Queue.Remove(val.KeyPtr)
+			delete(c.Items, key)
+		}
+	}
 
 	defer c.mx.Unlock()
 
